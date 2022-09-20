@@ -40,58 +40,104 @@ const DEFAULTS = {};
 const CACHE = {};
 
 const PREFMAP = [
-  null,       '北海道',   '青森県',   '岩手県',   '宮城県',
-  '秋田県',   '山形県',   '福島県',   '茨城県',   '栃木県',
-  '群馬県',   '埼玉県',   '千葉県',   '東京都',   '神奈川県',
-  '新潟県',   '富山県',   '石川県',   '福井県',   '山梨県',
-  '長野県',   '岐阜県',   '静岡県',   '愛知県',   '三重県',
-  '滋賀県',   '京都府',   '大阪府',   '兵庫県',   '奈良県',
-  '和歌山県', '鳥取県',   '島根県',   '岡山県',   '広島県',
-  '山口県',   '徳島県',   '香川県',   '愛媛県',   '高知県',
-  '福岡県',   '佐賀県',   '長崎県',   '熊本県',   '大分県',
-  '宮崎県',   '鹿児島県', '沖縄県'
+  null,
+  "北海道",
+  "青森県",
+  "岩手県",
+  "宮城県",
+  "秋田県",
+  "山形県",
+  "福島県",
+  "茨城県",
+  "栃木県",
+  "群馬県",
+  "埼玉県",
+  "千葉県",
+  "東京都",
+  "神奈川県",
+  "新潟県",
+  "富山県",
+  "石川県",
+  "福井県",
+  "山梨県",
+  "長野県",
+  "岐阜県",
+  "静岡県",
+  "愛知県",
+  "三重県",
+  "滋賀県",
+  "京都府",
+  "大阪府",
+  "兵庫県",
+  "奈良県",
+  "和歌山県",
+  "鳥取県",
+  "島根県",
+  "岡山県",
+  "広島県",
+  "山口県",
+  "徳島県",
+  "香川県",
+  "愛媛県",
+  "高知県",
+  "福岡県",
+  "佐賀県",
+  "長崎県",
+  "熊本県",
+  "大分県",
+  "宮崎県",
+  "鹿児島県",
+  "沖縄県",
 ];
 
-
 const base = (options = {}) => {
-  if (typeof options === 'string') {
+  if (typeof options === "string") {
     return options;
-  } else if (typeof options === 'object' && options.base) {
+  } else if (typeof options === "object" && options.base) {
     return options.base;
   } else if (DEFAULTS.base) {
     return DEFAULTS.base;
   } else {
-    throw new Error('No DATA_URI_BASE provided');
+    throw new Error("No DATA_URI_BASE provided");
   }
-}
-
+};
 
 const parse = (nzip, data, callback) => {
   const array = data[nzip];
   // Opera バグ対策：0x00800000 を超える添字は +0xff000000 されてしまう
-  const opera = (nzip - 0 + 0xff000000) + "";
-  if (!array && data[opera] ) { array = data[opera]; }
-  if (!array) { return callback(); }
+  const opera = nzip - 0 + 0xff000000 + "";
+  if (!array && data[opera]) {
+    array = data[opera];
+  }
+  if (!array) {
+    return callback();
+  }
 
-  const pref_id = array[0];        // 都道府県ID
-  if (!pref_id) { return callback(); }
-  const prefecture = PREFMAP[pref_id];  // 都道府県名
-  if (!prefecture) { return callback(); }
-  const city = array[1] || '';    // 市区町村名
-  const area = array[2] || '';    // 町域名
-  const street = array[3] || '';    // 番地
+  const pref_id = array[0]; // 都道府県ID
+  if (!pref_id) {
+    return callback();
+  }
+  const prefecture = PREFMAP[pref_id]; // 都道府県名
+  if (!prefecture) {
+    return callback();
+  }
+  const city = array[1] || ""; // 市区町村名
+  const area = array[2] || ""; // 町域名
+  const street = array[3] || ""; // 番地
 
-  callback({prefecture, city, area, street});
+  callback({ prefecture, city, area, street });
 };
 
 const fetchParse = function (nzip, options, callback) {
   const zip3 = nzip.substr(0, 3);
   const req = new XMLHttpRequest();
 
-  req.onreadystatechange = event => {
+  req.onreadystatechange = (event) => {
     if (req.readyState === 4) {
       if (req.status === 200) {
-        const data = JSON.parse(req.responseText);
+        const data = JSON.parse(
+          req.responseText.substring(7, req.responseText.length - 3)
+        );
         CACHE[zip3] = data;
         parse(nzip, data, callback);
       } else {
@@ -100,40 +146,55 @@ const fetchParse = function (nzip, options, callback) {
     }
   };
 
-  req.open('GET', `${base(options)}zip-${zip3}.json`, true);
+  req.open(
+    "GET",
+    `https://yubinbango.github.io/yubinbango-data/data/${zip3}.js`,
+    true
+  );
   req.send();
 };
 
 const get = (zip_code, options, callback) => {
   // 郵便番号を数字のみ7桁取り出す
   const vzip = zip_code;
-  if (!vzip) { return callback(); }
+  if (!vzip) {
+    return callback();
+  }
 
   // extract number only
-  let nzip = '';
-  for(let i = 0;  i < vzip.length; i++) {
+  let nzip = "";
+  for (let i = 0; i < vzip.length; i++) {
     let chr = vzip.charCodeAt(i);
-    if (chr < 48) { continue; }
-    if (chr > 57) { continue; }
+    if (chr < 48) {
+      continue;
+    }
+    if (chr > 57) {
+      continue;
+    }
     nzip += vzip.charAt(i);
   }
-  if (nzip.length < 7) { return callback(); }
+  if (nzip.length < 7) {
+    return callback();
+  }
 
   // fetch from cache data using upper 3 digit
-  const zip3 = nzip.substr(0,3);
+  const zip3 = nzip.substr(0, 3);
   const data = CACHE[zip3];
 
-  if (data) { parse(nzip, data, callback); }
-  else { fetchParse(nzip, options, callback); }
+  if (data) {
+    parse(nzip, data, callback);
+  } else {
+    fetchParse(nzip, options, callback);
+  }
 };
 
-
-const entry = (zip, options = {}) => new Promise(resolve => get(zip, options, resolve));
+const entry = (zip, options = {}) =>
+  new Promise((resolve) => get(zip, options, resolve));
 
 entry.configure = (options = {}) => {
-  if (typeof options === 'string') {
+  if (typeof options === "string") {
     DEFAULTS.base = options;
-  } else if (typeof options === 'object') {
+  } else if (typeof options === "object") {
     for (const key of options) {
       DEFAULTS[key] = options[key];
     }
